@@ -1,0 +1,8 @@
+Revision history for Perl extension Net::SNMP::XS
+
+0.02  Sat Apr 11 06:21:38 CEST 2009
+	- first CPAN release.
+
+0.01  Wed Apr  8 07:07:51 CEST 2009
+	- original version; cloned from Convert::Scalar.
+

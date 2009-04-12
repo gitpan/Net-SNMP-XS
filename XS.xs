@@ -21,6 +21,8 @@
 
 #define MAX_OID_STRLEN 4096
 
+#define HAVE_VERSIONSORT defined (_GNU_SOURCE) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 1
+
 static SV *msg;
 static int errflag, leading_dot;
 static U8 *buf, *cur;
@@ -284,6 +286,9 @@ process_object_identifier_sv (void)
   static char oid[MAX_OID_STRLEN]; // must be static
   char *app = oid;
 
+  if (leading_dot < 0)
+    leading_dot = SvTRUE (*hv_fetch ((HV *)SvRV (msg), "_leading_dot", sizeof ("_leading_dot") - 1, 1));
+
   *app = '.'; app += ! ! leading_dot;
   app = write_uv (app, (U8)w / 40);
   *app++ = '.';
@@ -358,6 +363,24 @@ process_sv (int *found)
 
   return errflag ? &PL_sv_undef : res;
 }
+
+/////////////////////////////////////////////////////////////////////////////
+
+#if HAVE_VERSIONSORT
+
+static int
+oid_lex_cmp (const void *a_, const void *b_)
+{
+  const char *a = SvPVX (*(SV **)a_);
+  const char *b = SvPVX (*(SV **)b_);
+
+  a += *a == '.';
+  b += *b == '.';
+
+  return strverscmp (a, b);
+}
+
+#endif
 
 MODULE = Net::SNMP::XS		PACKAGE = Net::SNMP::XS
 
@@ -568,4 +591,69 @@ _process_var_bind_list (SV *self)
 	OUTPUT:
         RETVAL
 
+MODULE = Net::SNMP::XS		PACKAGE = Net::SNMP
+
+void
+oid_base_match (SV *base_, SV *oid_)
+	PROTOTYPE: $$
+        ALIAS:
+        oid_context_match = 0
+        PPCODE:
+{
+        if (!SvOK (base_) || !SvOK (oid_))
+          XSRETURN_NO;
+
+        STRLEN blen, olen;
+        char *base = SvPV (base_, blen);
+        char *oid  = SvPV (oid_ , olen);
+
+        blen -= *base == '.'; base += *base == '.';
+        olen -= *base == '.'; oid  += *oid  == '.';
+
+        if (olen < blen)
+          XSRETURN_NO;
+
+        if (memcmp (base, oid, blen))
+          XSRETURN_NO;
+
+        if (oid [blen] && oid [blen] != '.')
+          XSRETURN_NO;
+
+        XSRETURN_YES;
+}
+
+#if HAVE_VERSIONSORT
+
+void
+oid_lex_sort (...)
+	PROTOTYPE: @
+        PPCODE:
+{
+        // make sure SvPVX is valid
+        int i;
+        for (i = items; i--; )
+          {
+            SV *sv = ST (i);
+
+            if (SvTYPE (sv) < SVt_PV || SvTYPE (sv) == SVt_PVAV && SvTYPE (sv) == SVt_PVHV)
+              SvPV_force_nolen (sv);
+          }
+
+        qsort (&ST (0), items, sizeof (SV *), oid_lex_cmp);
+
+        EXTEND (SP, items);
+        // we cheat somewhat by not returning copies here
+        for (i = 0; i < items; ++i)
+          PUSHs (sv_2mortal (SvREFCNT_inc (ST (i))));
+}
+
+int
+_index_cmp (const char *a, const char *b)
+	PROTOTYPE: $$
+        CODE:
+        RETVAL = strverscmp (a, b);
+        OUTPUT:
+        RETVAL
+
+#endif
 

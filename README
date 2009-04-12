@@ -19,9 +19,7 @@ DESCRIPTION
 
     overriding internal functions might cause the module to malfunction with
     future versions of Net::SNMP
-    only leading dots for oids are supported
     error messages will be simpler/different
-    oid components are limited to unsigned 32 bit integers
     translation will be ignored (all values will be delivered "raw")
     a moderately modern (>= C99) C compiler is required
     only tested with 5.10, no intentions to port to older perls

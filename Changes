@@ -1,5 +1,10 @@
 Revision history for Perl extension Net::SNMP::XS
 
+0.03  Sun Apr 12 02:48:00 CEST 2009
+	- support leading_dot setting.
+	- add xs replacement for oid_base_match.
+	- add xs replacement for oid_lex_sort, _index_cmp (only with glibc).
+
 0.02  Sat Apr 11 06:21:38 CEST 2009
 	- first CPAN release.
 

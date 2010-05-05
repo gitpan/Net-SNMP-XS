@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::SNMP::XS
 
+1.0   Wed May  5 22:36:27 CEST 2010
+	- implement the last missing bit, which I forgot, and broke
+          snmpv3.
+        - use a slightly slower, but more robust way of fetching/storing
+          the buffer state for the parser.
+
 0.03  Sun Apr 12 02:48:00 CEST 2009
 	- support leading_dot setting.
 	- add xs replacement for oid_base_match.

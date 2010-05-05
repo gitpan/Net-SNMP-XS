@@ -5,5 +5,6 @@ COPYING
 Makefile.PL
 XS.pm
 XS.xs
+typemap
 t/00_load.t
 META.yml                                 Module meta-data (added by MakeMaker)

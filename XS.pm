@@ -54,24 +54,13 @@ use Net::SNMP::Message ();
 use Net::SNMP::MessageProcessing ();
 
 our $VERSION;
-our $old_prepare;
 
 BEGIN {
-   $VERSION = '0.03';
+   $VERSION = '1.0';
 
-   $old_prepare = \&Net::SNMP::MessageProcessing::prepare_data_elements;
-
-   # this overrides many methods inside
+   # this overrides many methods inside Net::SNMP and it's submodules
    require XSLoader;
    XSLoader::load Net::SNMP::XS, $VERSION;
-}
-
-sub Net::SNMP::MessageProcessing::prepare_data_elements {
-   my ($self, $msg) = @_;
-
-   set_msg $msg, $msg->{_buffer};
-   scope_guard \&clr_msg;
-   &$old_prepare
 }
 
 package Net::SNMP::Message;
@@ -102,7 +91,7 @@ Net::SNMP::XS::set_type REPORT           , \&_process_report;
 
 package Net::SNMP::PDU;
 
-# var_bind_list hardcodes oid_lext_sort. *sigh*
+# var_bind_list hardcodes oid_lex_sort. *sigh*
 # we copy it 1:1, except for using oid_lex_sort.
 
 sub var_bind_list

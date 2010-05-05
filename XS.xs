@@ -23,10 +23,55 @@
 
 #define HAVE_VERSIONSORT defined (_GNU_SOURCE) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 1
 
+static SV *cur_bufobj;
 static SV *msg;
 static int errflag, leading_dot;
 static U8 *buf, *cur;
 static STRLEN len, rem;
+
+typedef SV *BUFOBJ;
+
+/////////////////////////////////////////////////////////////////////////////
+
+#if 0
+        if (msg)
+          croak ("recursive invocation of Net::SNMP::XS parser is not supported");
+
+
+void
+clr_msg ()
+	CODE:
+        SvREFCNT_dec (msg); msg = 0;
+        buf = cur = (U8 *)"";
+        len = rem = 0;
+#endif
+
+static void
+switch_bufobj (BUFOBJ neu)
+{
+  // serialise our state back
+  if (msg && SvROK (msg))
+    {
+      SV *idx_sv = *hv_fetch ((HV *)cur_bufobj, "_index" , sizeof ("_index" ) - 1, 1);
+      sv_setiv (idx_sv, cur - buf);
+    }
+
+  SvREFCNT_dec (msg);
+  msg = newSVsv (neu);
+  cur_bufobj = SvRV (msg);
+  sv_rvweaken (msg);
+
+  SV *bufsv =       *hv_fetch ((HV *)cur_bufobj, "_buffer", sizeof ("_buffer") - 1, 1);
+  IV index  = SvIV (*hv_fetch ((HV *)cur_bufobj, "_index" , sizeof ("_index" ) - 1, 1));
+
+  errflag     = 0;
+  leading_dot = -1;
+  buf         = SvPVbyte (bufsv, len);
+  cur         = buf + index;
+  rem         = len - index;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 
 static SV *
 x_get_cv (SV *cb_sv)
@@ -397,35 +442,15 @@ set_type (int type, SV *cv)
 void
 set_msg (SV *msg_, SV *buf_)
 	CODE:
-{
-        if (msg)
-          croak ("recursive invocation of Net::SNMP::XS parser is not supported");
-
-        errflag     = 0;
-        leading_dot = -1;
-        msg         = SvREFCNT_inc (msg_);
-        buf         = SvPVbyte (buf_, len);
-        cur         = buf;
-        rem         = len;
-#ifdef BENCHMARK
-        t1          = tstamp ();
-#endif
-}
 
 void
 clr_msg ()
 	CODE:
-        SvREFCNT_dec (msg); msg = 0;
-        buf = cur = (U8 *)"";
-        len = rem = 0;
-#ifdef BENCHMARK
-        printf ("%f\n", tstamp () - t1);//D
-#endif
 
 MODULE = Net::SNMP::XS		PACKAGE = Net::SNMP::Message
 
 void
-_buffer_get (SV *self, int count = -1)
+_buffer_get (BUFOBJ self, int count = -1)
 	PPCODE:
 {
 	// grrr.
@@ -446,7 +471,7 @@ _buffer_get (SV *self, int count = -1)
 }
 
 U32
-index (SV *self, int ndx = -1)
+index (BUFOBJ self, int ndx = -1)
 	CODE:
 {
         if (ndx >= 0 && ndx < len)
@@ -461,7 +486,7 @@ index (SV *self, int ndx = -1)
         RETVAL
 
 U32
-_process_length (SV *self, ...)
+_process_length (BUFOBJ self, ...)
 	ALIAS:
         _process_sequence = 0
 	CODE:
@@ -470,14 +495,14 @@ _process_length (SV *self, ...)
         RETVAL
 
 SV *
-_process_integer32 (SV *self, ...)
+_process_integer32 (BUFOBJ self, ...)
 	CODE:
         RETVAL = process_integer32_sv ();
 	OUTPUT:
         RETVAL
 
 SV *
-_process_counter (SV *self, ...)
+_process_counter (BUFOBJ self, ...)
 	ALIAS:
         _process_gauge     = 0
         _process_timeticks = 0
@@ -489,7 +514,7 @@ _process_counter (SV *self, ...)
 #if IVSIZE >= 8
 
 SV *
-_process_counter64 (SV *self, ...)
+_process_counter64 (BUFOBJ self, ...)
 	CODE:
         RETVAL = process_unsigned64_sv ();
 	OUTPUT:
@@ -498,14 +523,14 @@ _process_counter64 (SV *self, ...)
 #endif
 
 SV *
-_process_object_identifier (SV *self, ...)
+_process_object_identifier (BUFOBJ self, ...)
 	CODE:
         RETVAL = process_object_identifier_sv ();
 	OUTPUT:
         RETVAL
 
 SV *
-_process_octet_string (SV *self, ...)
+_process_octet_string (BUFOBJ self, ...)
 	ALIAS:
         _process_opaque = 0
 	CODE:
@@ -514,7 +539,7 @@ _process_octet_string (SV *self, ...)
         RETVAL
 
 SV *
-_process_ipaddress (SV *self, ...)
+_process_ipaddress (BUFOBJ self, ...)
 	CODE:
 {
   	U32 length = process_length ();
@@ -531,7 +556,7 @@ _process_ipaddress (SV *self, ...)
         RETVAL
 
 SV *
-process (SV *self, SV *expected = &PL_sv_undef, SV *found = 0)
+process (BUFOBJ self, SV *expected = &PL_sv_undef, SV *found = 0)
 	CODE:
 {
   	int type;
@@ -550,7 +575,7 @@ process (SV *self, SV *expected = &PL_sv_undef, SV *found = 0)
 MODULE = Net::SNMP::XS		PACKAGE = Net::SNMP::PDU
 
 SV *
-_process_var_bind_list (SV *self)
+_process_var_bind_list (BUFOBJ self)
         CODE:
 {
         if (get8 () != ASN_SEQUENCE)
@@ -562,9 +587,9 @@ _process_var_bind_list (SV *self)
         AV *names = newAV ();
         HV *types = newHV ();
 
-        hv_store ((HV *)SvRV (self), "_var_bind_list" , sizeof ("_var_bind_list" ) - 1, newRV_noinc ((SV *)list ), 0);
-        hv_store ((HV *)SvRV (self), "_var_bind_names", sizeof ("_var_bind_names") - 1, newRV_noinc ((SV *)names), 0);
-        hv_store ((HV *)SvRV (self), "_var_bind_types", sizeof ("_var_bind_types") - 1, newRV_noinc ((SV *)types), 0);
+        hv_store ((HV *)cur_bufobj, "_var_bind_list" , sizeof ("_var_bind_list" ) - 1, newRV_noinc ((SV *)list ), 0);
+        hv_store ((HV *)cur_bufobj, "_var_bind_names", sizeof ("_var_bind_names") - 1, newRV_noinc ((SV *)names), 0);
+        hv_store ((HV *)cur_bufobj, "_var_bind_types", sizeof ("_var_bind_types") - 1, newRV_noinc ((SV *)types), 0);
         
         while (cur < end && !errflag)
           {
@@ -584,7 +609,18 @@ _process_var_bind_list (SV *self)
             av_push (names, oid);
           }
         
-        //return $this->_report_pdu_error if ($this->{_pdu_type} == REPORT);
+        // sigh - great design to do it here
+        SV *pdu_type = *hv_fetch ((HV *)cur_bufobj, "_pdu_type" , sizeof ("_pdu_type" ) - 1, 1);
+
+        if (SvIV (pdu_type) == 0xa8) // REPORT
+          {
+            PUSHMARK (SP);
+            XPUSHs (msg);
+            PUTBACK;
+            call_method ("_report_pdu_error", G_VOID | G_DISCARD);
+            SPAGAIN;
+            XSRETURN_EMPTY;
+          }
         
         RETVAL = newRV_inc ((SV *)list);
 }

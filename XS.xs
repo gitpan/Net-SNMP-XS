@@ -24,7 +24,7 @@
 #define HAVE_VERSIONSORT defined (_GNU_SOURCE) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 1
 
 static SV *cur_bufobj;
-static SV *msg;
+static SV *msg, *bufsv;
 static int errflag, leading_dot;
 static U8 *buf, *cur;
 static STRLEN len, rem;
@@ -47,28 +47,38 @@ clr_msg ()
 #endif
 
 static void
-switch_bufobj (BUFOBJ neu)
+clear_bufobj (void)
 {
   // serialise our state back
   if (msg && SvROK (msg))
     {
       SV *idx_sv = *hv_fetch ((HV *)cur_bufobj, "_index" , sizeof ("_index" ) - 1, 1);
       sv_setiv (idx_sv, cur - buf);
-    }
 
-  SvREFCNT_dec (msg);
+      SvREFCNT_dec (msg);
+      msg        = 0;
+      cur_bufobj = 0;
+    }
+}
+
+static void
+switch_bufobj (BUFOBJ neu)
+{
+  clear_bufobj ();
+
   msg = newSVsv (neu);
   cur_bufobj = SvRV (msg);
   sv_rvweaken (msg);
 
-  SV *bufsv =       *hv_fetch ((HV *)cur_bufobj, "_buffer", sizeof ("_buffer") - 1, 1);
-  IV index  = SvIV (*hv_fetch ((HV *)cur_bufobj, "_index" , sizeof ("_index" ) - 1, 1));
-
   errflag     = 0;
   leading_dot = -1;
-  buf         = SvPVbyte (bufsv, len);
-  cur         = buf + index;
-  rem         = len - index;
+
+  IV index = SvIV (*hv_fetch ((HV *)cur_bufobj, "_index" , sizeof ("_index" ) - 1, 1));
+  bufsv    =       *hv_fetch ((HV *)cur_bufobj, "_buffer", sizeof ("_buffer") - 1, 1);
+
+  buf = SvPVbyte (bufsv, len);
+  cur = buf + index;
+  rem = len - index;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -388,7 +398,7 @@ process_sv (int *found)
 
       default:
         {
-          if (type > AvFILLp (av_type) || !SvTYPE (AvARRAY (av_type)[type]) == SVt_PVCV)
+          if (type > AvFILLp (av_type) || SvTYPE (AvARRAY (av_type)[type]) != SVt_PVCV)
             {
               error ("Unknown ASN.1 type");
               return &PL_sv_undef;
@@ -439,15 +449,36 @@ set_type (int type, SV *cv)
 	CODE:
         av_store (av_type, type, SvREFCNT_inc (x_get_cv (cv)));
 
-void
-set_msg (SV *msg_, SV *buf_)
-	CODE:
-
-void
-clr_msg ()
-	CODE:
+void xxx(...)
+    CODE:
+    clear_bufobj ();
 
 MODULE = Net::SNMP::XS		PACKAGE = Net::SNMP::Message
+
+void
+_buffer_append (BUFOBJ self, SV *value)
+	ALIAS:
+        _buffer_put = 1
+	PPCODE:
+{
+        STRLEN vlen;
+        const char *vstr = SvPVbyte (value, vlen);
+
+        if (ix)
+          sv_insert (bufsv, 0, 0, vstr, vlen);
+        else
+          sv_catpvn (bufsv, vstr, vlen);
+
+        buf = SvPVbyte (bufsv, len);
+        cur = buf;
+        rem = len;
+
+	SV *len_sv = *hv_fetch ((HV *)cur_bufobj, "_length", sizeof ("_length") - 1, 1);
+        sv_setiv (len_sv, len);
+
+        // some callers test for defined'ness of the returnvalue. *sigh*
+        XPUSHs (&PL_sv_yes);
+}
 
 void
 _buffer_get (BUFOBJ self, int count = -1)
@@ -458,9 +489,13 @@ _buffer_get (BUFOBJ self, int count = -1)
           {
             hv_delete ((HV *)SvRV (self), "_index" , 6, G_DISCARD);
             hv_delete ((HV *)SvRV (self), "_length", 7, G_DISCARD);
-            SV **svp = hv_fetch ((HV *)SvRV (self), "_buffer", 7, 1);
-            XPUSHs (sv_2mortal (newSVsv (*svp)));
-            sv_setpvn (*svp, "", 0);
+            XPUSHs (sv_2mortal (newSVsv (bufsv)));
+            sv_setpvn (bufsv, "", 0);
+
+            buf = "";
+            cur = buf;
+            rem = 0;
+
             XSRETURN (1);
           }
 
@@ -640,8 +675,8 @@ oid_base_match (SV *base_, SV *oid_)
           XSRETURN_NO;
 
         STRLEN blen, olen;
-        char *base = SvPV (base_, blen);
-        char *oid  = SvPV (oid_ , olen);
+        char *base = SvPVbyte (base_, blen);
+        char *oid  = SvPVbyte (oid_ , olen);
 
         blen -= *base == '.'; base += *base == '.';
         olen -= *base == '.'; oid  += *oid  == '.';

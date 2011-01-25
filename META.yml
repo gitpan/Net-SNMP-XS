@@ -1,29 +1,22 @@
-{
-   "no_index" : {
-      "directory" : [
-         "t",
-         "inc"
-      ]
-   },
-   "meta-spec" : {
-      "version" : 1.4,
-      "url" : "http://module-build.sourceforge.net/META-spec-v1.4.html"
-   },
-   "generated_by" : "ExtUtils::MakeMaker version 6.56",
-   "distribution_type" : "module",
-   "version" : "1.1",
-   "name" : "Net-SNMP-XS",
-   "author" : [],
-   "license" : "unknown",
-   "build_requires" : {
-      "ExtUtils::MakeMaker" : 0
-   },
-   "requires" : {
-      "Net::SNMP" : 18,
-      "Guard" : 1
-   },
-   "abstract" : null,
-   "configure_requires" : {
-      "ExtUtils::MakeMaker" : 0
-   }
-}
+--- #YAML:1.0
+name:               Net-SNMP-XS
+version:            1.2
+abstract:           ~
+author:  []
+license:            unknown
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
+build_requires:
+    ExtUtils::MakeMaker:  0
+requires:
+    Guard:      1
+    Net::SNMP:  18
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.56
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4

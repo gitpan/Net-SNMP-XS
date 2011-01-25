@@ -1,10 +1,15 @@
 Revision history for Perl extension Net::SNMP::XS
 
+1.2   Tue Jan 25 20:26:50 CET 2011
+	- fix a bug where the internal message cache wouldn't be refreshed
+          when perl reuses SVs, causing runtime errors and possibly crashes.
+	- remove harmless/unused debugging code.
+
 1.1   Thu Jul 29 04:50:46 CEST 2010
 	- provide optimised _buffer_append/put - this should speed up
           message encoding and fixes a number of bugs in snmpv3 handling
           caused by this module.
-	- fix illegal ASN.1 type handing in process_sv.
+	- fix illegal ASN.1 type handling in process_sv.
         - minor _buffer_get optimisations.
 
 1.0   Wed May  5 22:36:27 CEST 2010

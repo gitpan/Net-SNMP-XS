@@ -449,10 +449,6 @@ set_type (int type, SV *cv)
 	CODE:
         av_store (av_type, type, SvREFCNT_inc (x_get_cv (cv)));
 
-void xxx(...)
-    CODE:
-    clear_bufobj ();
-
 MODULE = Net::SNMP::XS		PACKAGE = Net::SNMP::Message
 
 void

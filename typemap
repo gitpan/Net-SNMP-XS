@@ -4,5 +4,5 @@ INPUT
 
 T_BUFOBJ
 	$var = $arg;
-	if (SvRV ($arg) != cur_bufobj)
+	if (SvRV ($arg) != cur_bufobj || !SvROK (msg))
           switch_bufobj ($arg);

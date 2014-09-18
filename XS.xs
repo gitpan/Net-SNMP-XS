@@ -54,11 +54,11 @@ clear_bufobj (void)
     {
       SV *idx_sv = *hv_fetch ((HV *)cur_bufobj, "_index" , sizeof ("_index" ) - 1, 1);
       sv_setiv (idx_sv, cur - buf);
-
-      SvREFCNT_dec (msg);
-      msg        = 0;
-      cur_bufobj = 0;
     }
+
+  SvREFCNT_dec (msg);
+  msg        = 0;
+  cur_bufobj = 0;
 }
 
 static void

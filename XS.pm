@@ -56,7 +56,7 @@ use Net::SNMP::MessageProcessing ();
 our $VERSION;
 
 BEGIN {
-   $VERSION = 1.3;
+   $VERSION = 1.31;
 
    # this overrides many methods inside Net::SNMP and it's submodules
    require XSLoader;

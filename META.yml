@@ -19,5 +19,5 @@ no_index:
     - inc
 requires:
   Guard: '1'
-  Net::SNMP: '18'
-version: 1.3
+  Net::SNMP: '0'
+version: 1.31

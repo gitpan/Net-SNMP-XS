@@ -10,7 +10,7 @@ WriteMakefile(
     VERSION_FROM => "XS.pm",
     PREREQ_PM    => {
        Guard     => 1,
-       Net::SNMP => 18,
+       Net::SNMP => 0,
     },
 );
 
